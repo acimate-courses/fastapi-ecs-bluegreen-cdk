@@ -65,8 +65,7 @@ jobs:
           name: cdk-out-zip
           path: cdk-out.zip
 
-  deploy-dev:
-    deploy_dev:
+  deploy-dev:    
     name: Deploy to dev (dev-assembly)
     needs: synth
     runs-on: ubuntu-latest
