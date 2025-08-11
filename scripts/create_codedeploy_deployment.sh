@@ -1,10 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-# Required inputs
-CD_APP="${CD_APP:?Application name not set}"
-CD_DG="${CD_DG:?Deployment group name not set}"
-APPSPEC_FILE="${APPSPEC_FILE:-appspec.yaml}"
+# Usage: ./create_codedeploy_deployment.sh <application-name> <deployment-group-name> [appspec-file]
+APP_NAME="${1:?Missing application name}"
+DEPLOYMENT_GROUP="${2:?Missing deployment group name}"
+APPSPEC_FILE="${3:-appspec.yaml}"
 
 # Read and escape appspec content
 if [[ ! -f "$APPSPEC_FILE" ]]; then
@@ -25,8 +25,8 @@ echo "$REVISION_JSON" | jq . > /dev/null || {
 
 # Create deployment
 DEPLOYMENT_ID=$(aws deploy create-deployment \
-  --application-name "$CD_APP" \
-  --deployment-group-name "$CD_DG" \
+  --application-name "$APP_NAME" \
+  --deployment-group-name "$DEPLOYMENT_GROUP" \
   --revision "$REVISION_JSON" \
   --query "deploymentId" --output text)
 

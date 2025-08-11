@@ -122,8 +122,7 @@ runs:
       env:
         CD_APP: ${{ steps.describe.outputs.CD_APP }}
         CD_DG: ${{ steps.describe.outputs.CD_DG }}
+        APPSPEC_FILE: "appspec.yaml"
       run: |
-        chmod +x scripts/create_codedeploy_deployment.sh
-        CD_APP=$CD_APP \
-        CD_DG=$CD_DG \
-        scripts/create_codedeploy_deployment.sh
+        chmod +x scripts/create_codedeploy_deployment.sh        
+        scripts/create_codedeploy_deployment.sh $CD_APP $CD_DG $APPSPEC_FILE
