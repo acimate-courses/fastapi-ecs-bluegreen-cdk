@@ -49,29 +49,28 @@ runs:
           # Alternatively, fetch via aws cloudformation describe-stacks.
           STACK_NAME=dev-fastapi-ecs-training-cluster-us-east-1-ecs-blue-green
           OUT=$(aws cloudformation describe-stacks --stack-name $STACK_NAME \
-            --query "Stacks[0].Outputs[].[OutputKey,OutputValue]" --output text)
+            --query "Stacks[0].Outputs" --output json)
 
-          kv() { echo "$OUT" | awk -v k="$1" '$1==k{print $2}'; }
-
-          echo "CLUSTER=$(kv ClusterName)" >> $GITHUB_OUTPUT
-          echo "SERVICE=$(kv ServiceName)" >> $GITHUB_OUTPUT
-          echo "CD_APP=$(kv CodeDeployApplicationName)" >> $GITHUB_OUTPUT
-          echo "CD_DG=$(kv CodeDeployDeploymentGroupName)" >> $GITHUB_OUTPUT
-          echo "PRE_HOOK=$(kv PreTrafficHookName)" >> $GITHUB_OUTPUT
-          echo "CONTAINER_NAME=$(kv ContainerName)" >> $GITHUB_OUTPUT
-          echo "CONTAINER_PORT=$(kv ContainerPort)" >> $GITHUB_OUTPUT
-          echo "ECR_URI=$(kv EcrRepositoryUri)" >> $GITHUB_OUTPUT
-          echo "TASK_ROLE_ARN=$(kv ECSTaskRole)" >> $GITHUB_OUTPUT
-          echo "EXECUTION_ROLE_ARN=$(kv ECSExecutionRole)" >> $GITHUB_OUTPUT
+          echo "EXEC_ROLE=$(jq -r '.[] | select(.OutputKey=="ECSExecutionRole") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
+          echo "TASK_ROLE=$(jq -r '.[] | select(.OutputKey=="ECSTaskRole") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
+          echo "CLUSTER=$(jq -r '.[] | select(.OutputKey=="ClusterName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
+          echo "SERVICE=$(jq -r '.[] | select(.OutputKey=="ServiceName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
+          echo "CD_APP=$(jq -r '.[] | select(.OutputKey=="CodeDeployApplicationName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
+          echo "CD_DG=$(jq -r '.[] | select(.OutputKey=="CodeDeployDeploymentGroupName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
+          echo "PRE_HOOK=$(jq -r '.[] | select(.OutputKey=="PreTrafficHookName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
+          echo "CONTAINER_NAME=$(jq -r '.[] | select(.OutputKey=="ContainerName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
+          echo "CONTAINER_PORT=$(jq -r '.[] | select(.OutputKey=="ContainerPort") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
+          echo "ECR_URI=$(jq -r '.[] | select(.OutputKey=="EcrRepositoryUri") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"                                                            
 
     - name: Render task definition
       shell: bash
       run: |
+        cat $GITHUB_OUTPUT
         TEMPLATE=task-definition-template.json
         TASKDEF=taskdef.json
         jq --arg IMAGE "$IMAGE_URI" \
-           --arg EXEC_ROLE "$ECS_EXECUTION_ROLE" \
-           --arg TASK_ROLE "$ECSTASK_ROLE" \
+           --arg EXEC_ROLE "$EXEC_ROLE" \
+           --arg TASK_ROLE "$TASK_ROLE" \
            --arg CONTAINER_NAME "$CONTAINER_NAME" '
           .containerDefinitions |=
             (map(if .name == $CONTAINER_NAME then .image = $IMAGE | . else . end)) |
