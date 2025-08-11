@@ -67,10 +67,10 @@ runs:
     - name: Render task definition
       shell: bash
       env:
-      IMAGE_URI: ${{ steps.image.outputs.IMAGE_URI }}
-      EXEC_ROLE: ${{ steps.describe.outputs.EXEC_ROLE }}
-      TASK_ROLE: ${{ steps.describe.outputs.TASK_ROLE }}
-      CONTAINER_NAME: "AppContainer"
+        IMAGE_URI: ${{ steps.image.outputs.IMAGE_URI }}
+        EXEC_ROLE: ${{ steps.describe.outputs.EXEC_ROLE }}
+        TASK_ROLE: ${{ steps.describe.outputs.TASK_ROLE }}
+        CONTAINER_NAME: "AppContainer"
 
       run: |        
         TEMPLATE="task-definition-template.json"
