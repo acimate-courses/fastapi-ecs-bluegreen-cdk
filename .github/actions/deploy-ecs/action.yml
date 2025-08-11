@@ -61,13 +61,13 @@ runs:
           echo "CONTAINER_NAME=$(jq -r '.[] | select(.OutputKey=="ContainerName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
           echo "CONTAINER_PORT=$(jq -r '.[] | select(.OutputKey=="ContainerPort") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
           echo "ECR_URI=$(jq -r '.[] | select(.OutputKey=="EcrRepositoryUri") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"                                                            
+          cat $GITHUB_OUTPUT
 
     - name: Render task definition
       shell: bash
-      run: |
-        cat $GITHUB_OUTPUT
-        TEMPLATE=task-definition-template.json
-        TASKDEF=taskdef.json
+      run: |        
+        TEMPLATE="task-definition-template.json"
+        TASKDEF="taskdef.json"
         jq --arg IMAGE "$IMAGE_URI" \
            --arg EXEC_ROLE "$EXEC_ROLE" \
            --arg TASK_ROLE "$TASK_ROLE" \
@@ -77,7 +77,7 @@ runs:
           .executionRoleArn = $EXEC_ROLE |
           .taskRoleArn = $TASK_ROLE
         ' $TEMPLATE > $TASKDEF
-
+      
     - name: Register new task definition
       id: register
       shell: bash
