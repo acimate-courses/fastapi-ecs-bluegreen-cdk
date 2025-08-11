@@ -101,7 +101,8 @@ runs:
         
       run: |
         APPSPEC_JSON=$(yq -o=json '.' appspec.yaml | jq -Rs .)        
-        SHA=$(echo -n "$APPSPEC_JSON" | openssl dgst -sha256 | awk '{print $2}')
+        SHA=$(echo -n "$APPSPEC_JSON" | openssl dgst -sha256)
+        echo "SHA=$SHA"
         
         aws deploy create-deployment \
         --application-name "$CD_APP" \
