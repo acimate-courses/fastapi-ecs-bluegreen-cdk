@@ -116,13 +116,13 @@ runs:
             - location: $PRE_HOOK
               timeout: 300
         EOF
-        cat appspec.yml
+        cat appspec.yaml
     - name: Verify the AppSpec file
       shell: bash
       run: |
         ls -l appspec.yaml || echo "❌ appspec.yaml not found"
         echo "File contents:"
-        cat appspec.yml
+        cat appspec.yaml
         python3 -c 'import yaml, sys; yaml.safe_load(sys.stdin)' < appspec.yaml
 
     - name: Create CodeDeploy deployment
