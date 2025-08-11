@@ -34,15 +34,16 @@ runs:
       uses: aws-actions/amazon-ecr-login@v2
 
     - name: Build and push Docker image
+      id: image
       shell: bash
       run: |
         IMAGE_URI=${{ inputs.aws-account-id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/${{ inputs.ecr-repo }}:${{ inputs.image-tag }}
         docker build -t $IMAGE_URI .
         docker push $IMAGE_URI
-        echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+        echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_OUTPUT
 
     - name: Get stack outputs
-      id: outputs
+      id: describe
       shell: bash
       run: |
           # If you have CDK outputs JSON saved as a repo variable, parse it.
@@ -65,6 +66,12 @@ runs:
 
     - name: Render task definition
       shell: bash
+      env:
+      IMAGE_URI: ${{ steps.image.outputs.IMAGE_URI }}
+      EXEC_ROLE: ${{ steps.describe.outputs.EXEC_ROLE }}
+      TASK_ROLE: ${{ steps.describe.outputs.TASK_ROLE }}
+      CONTAINER_NAME: "AppContainer"
+
       run: |        
         TEMPLATE="task-definition-template.json"
         TASKDEF="taskdef.json"
@@ -77,7 +84,7 @@ runs:
           .executionRoleArn = $EXEC_ROLE |
           .taskRoleArn = $TASK_ROLE
         ' $TEMPLATE > $TASKDEF
-      
+
     - name: Register new task definition
       id: register
       shell: bash
