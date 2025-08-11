@@ -43,6 +43,7 @@ runs:
 
     - name: Get stack outputs
       id: outputs
+      shell: bash
       run: |
           # If you have CDK outputs JSON saved as a repo variable, parse it.
           # Alternatively, fetch via aws cloudformation describe-stacks.
