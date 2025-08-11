@@ -98,9 +98,13 @@ runs:
       env:
         CD_APP: ${{ steps.describe.outputs.CD_APP }}
         CD_DG: ${{ steps.describe.outputs.CD_DG }}
-        APPSPEC_FILE: "appspec.yaml"
-        GITHUB_REPO: "${{ github.repository }}"
-        COMMIT_ID: "${{ github.sha }}"
+        
       run: |
-        chmod +x scripts/create_codedeploy_deployment.sh        
-        scripts/create_codedeploy_deployment.sh "$CD_APP" "$CD_DG" "$GITHUB_REPO" "$COMMIT_ID"
+        APPSPEC_JSON=$(yq -o=json '.' appspec.yaml)
+        SHA=$(echo -n "$APPSPEC_JSON" | openssl dgst -sha256 | awk '{print $2}')SHA=$(echo -n "$APPSPEC_JSON" | openssl dgst -sha256 | awk '{print $2}')
+        
+        aws deploy create-deployment \
+        --application-name "$CD_APP" \
+        --deployment-group-name "$CD_DG" \
+        --revision revisionType=AppSpecContent,appSpecContent="{content=$APPSPEC_JSON,sha256=$SHA}" \
+        --description "Inline AppSpec deployment from GitHub Actions"
