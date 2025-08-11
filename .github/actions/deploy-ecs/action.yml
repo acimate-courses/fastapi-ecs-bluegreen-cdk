@@ -100,12 +100,27 @@ runs:
         CD_DG: ${{ steps.describe.outputs.CD_DG }}
         
       run: |
-        APPSPEC_JSON=$(yq -o=json '.' appspec.yaml | jq -Rs .)        
-        SHA=$(echo -n "$APPSPEC_JSON" | openssl dgst -sha256)
+        APPSPEC_JSON=$(yq -o=json '.' appspec.yaml | jq -Rs .)
+        RAW_JSON=$(yq -o=json '.' appspec.yaml)
+        SHA=$(echo -n "$RAW_JSON" | openssl dgst -sha256 | awk '{print $2}')
+        
         echo "SHA=$SHA"
         
+        REVISION_JSON=$(jq -n \
+        --arg content "$APPSPEC_JSON" \
+        --arg sha256 "$SHA" \
+        '{
+          revisionType: "AppSpecContent",
+          appSpecContent: {
+            content: $content,
+            sha256: $sha256
+          }
+        }')
+        
+        echo "REVISION_JSON=$REVISION_JSON"
+
         aws deploy create-deployment \
         --application-name "$CD_APP" \
         --deployment-group-name "$CD_DG" \
-        --revision revisionType=AppSpecContent,appSpecContent="{content=$APPSPEC_JSON,sha256=$SHA}" \
+        --revision "$REVISION_JSON" \
         --description "Inline AppSpec deployment from GitHub Actions"
