@@ -67,7 +67,7 @@ runs:
     - name: Render task definition
       shell: bash
       run: |
-        TEMPLATE=taskdef-template.json
+        TEMPLATE=task-definition-template.json
         TASKDEF=taskdef.json
         jq --arg IMAGE "$IMAGE_URI" \
            --arg EXEC_ROLE "$ECS_EXECUTION_ROLE" \
