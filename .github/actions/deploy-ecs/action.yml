@@ -47,7 +47,7 @@ runs:
       run: |
           # If you have CDK outputs JSON saved as a repo variable, parse it.
           # Alternatively, fetch via aws cloudformation describe-stacks.
-          STACK_NAME=dev/fastapi-ecs-training-cluster-us-east-1-ecs-blue-green
+          STACK_NAME=dev-fastapi-ecs-training-cluster-us-east-1-ecs-blue-green
           OUT=$(aws cloudformation describe-stacks --stack-name $STACK_NAME \
             --query "Stacks[0].Outputs[].[OutputKey,OutputValue]" --output text)
 
