@@ -154,7 +154,7 @@ class EcsBlueGreenStack(Stack):
         )
 
         # Register BLUE target group to the service (GREEN will be used by CodeDeploy during deployments)
-        service.attach_to_application_target_group(blue_tg)
+        #service.attach_to_application_target_group(blue_tg)
 
         # Grant ALB to reach service tasks
         blue_tg.add_target(service)
