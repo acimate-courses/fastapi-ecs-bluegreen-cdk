@@ -95,6 +95,11 @@ runs:
 
     - name: Create AppSpec file
       shell: bash
+      env:
+        PRE_HOOK: ${{ steps.describe.outputs.PRE_HOOK }}
+        CONTAINER_NAME: "AppContainer"
+        CONTAINER_PORT: "80"
+        
       run: |
         cat > appspec.yaml <<EOF
         version: 1
@@ -114,6 +119,9 @@ runs:
 
     - name: Trigger CodeDeploy deployment
       shell: bash
+      env:
+        CD_APP: ${{ steps.describe.outputs.CD_APP }}
+        CD_DG: ${{ steps.describe.outputs.CD_DG }}
       run: |
         DEPLOYMENT_ID=$(aws deploy create-deployment \
           --application-name "$CD_APP" \
