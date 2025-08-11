@@ -118,6 +118,7 @@ runs:
         EOF
 
     - name: Create CodeDeploy deployment
+      shell: bash
       env:
         CD_APP: ${{ steps.describe.outputs.CD_APP }}
         CD_DG: ${{ steps.describe.outputs.CD_DG }}
@@ -126,4 +127,3 @@ runs:
         CD_APP=$CD_APP \
         CD_DG=$CD_DG \
         scripts/create_codedeploy_deployment.sh
-
