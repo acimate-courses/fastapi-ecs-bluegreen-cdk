@@ -52,7 +52,7 @@ runs:
             --query "Stacks[0].Outputs" --output json)
 
           echo "EXEC_ROLE=arn:aws:iam::707690426194:role/dev-fastapi-ecs-training-clus-ExecutionRole605A040B-oG2NstvDeh4H" >> "$GITHUB_OUTPUT"
-          echo "TASK_ROLE="arn:aws:iam::707690426194:role/dev-fastapi-ecs-training-cluster-u-TaskRole30FC0FBB-vLleMILPy1M2" >> "$GITHUB_OUTPUT"
+          echo "TASK_ROLE=arn:aws:iam::707690426194:role/dev-fastapi-ecs-training-cluster-u-TaskRole30FC0FBB-vLleMILPy1M2" >> "$GITHUB_OUTPUT"
           echo "CLUSTER=$(jq -r '.[] | select(.OutputKey=="ClusterName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
           echo "SERVICE=$(jq -r '.[] | select(.OutputKey=="ServiceName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
           echo "CD_APP=$(jq -r '.[] | select(.OutputKey=="CodeDeployApplicationName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
