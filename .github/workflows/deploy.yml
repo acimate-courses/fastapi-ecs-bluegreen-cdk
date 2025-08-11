@@ -1,0 +1,126 @@
+name: Deploy App (ECS Blue/Green)
+
+on:
+  workflow_run:
+    workflows: [ "Deploy Infra (CDK)" ]  # Must match the 'name:' in infra.yml
+    types:
+      - completed
+  workflow_dispatch: {} # still allow manual triggers if needed
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: 707690426194
+  ECR_REPO: ecs-bluegreen-app
+  SERVICE_CONTAINER_NAME: AppContainer
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::707690426194:role/training-github-oidc-cdk
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: build
+        run: |
+          IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}
+          GIT_SHA=${GITHUB_SHA::12}
+          docker build -f Dockerfile -t ${IMAGE_URI}:${GIT_SHA} .
+          docker push ${IMAGE_URI}:${GIT_SHA}
+          echo "image=${IMAGE_URI}:${GIT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Get stack outputs
+        id: outputs
+        run: |
+          # If you have CDK outputs JSON saved as a repo variable, parse it.
+          # Alternatively, fetch via aws cloudformation describe-stacks.
+          STACK_NAME=dev-fastapi-ecs-training-cluster-us-east-1-ecs-blue-green
+          OUT=$(aws cloudformation describe-stacks --stack-name $STACK_NAME \
+            --query "Stacks[0].Outputs[].[OutputKey,OutputValue]" --output text)
+
+          kv() { echo "$OUT" | awk -v k="$1" '$1==k{print $2}'; }
+
+          echo "CLUSTER=$(kv ClusterName)" >> $GITHUB_OUTPUT
+          echo "SERVICE=$(kv ServiceName)" >> $GITHUB_OUTPUT
+          echo "CD_APP=$(kv CodeDeployApplicationName)" >> $GITHUB_OUTPUT
+          echo "CD_DG=$(kv CodeDeployDeploymentGroupName)" >> $GITHUB_OUTPUT
+          echo "PRE_HOOK=$(kv PreTrafficHookName)" >> $GITHUB_OUTPUT
+          echo "CONTAINER_NAME=$(kv ContainerName)" >> $GITHUB_OUTPUT
+          echo "CONTAINER_PORT=$(kv ContainerPort)" >> $GITHUB_OUTPUT
+          echo "ECR_URI=$(kv EcrRepositoryUri)" >> $GITHUB_OUTPUT
+          echo "TASK_ROLE_ARN=$(kv ECSTaskRole)" >> $GITHUB_OUTPUT
+          echo "EXECUTION_ROLE_ARN=$(kv ECSExecutionRole)" >> $GITHUB_OUTPUT
+
+      - name: Render task definition
+        id: taskdef
+        run: |
+          IMAGE="${{ steps.build.outputs.image }}"
+          TEMPLATE=taskdef-template.json
+          TASKDEF=taskdef.json
+
+          jq --arg IMAGE "$IMAGE" \
+            --arg EXEC_ROLE "$EXECUTION_ROLE_ARN" \
+            --arg TASK_ROLE "$TASK_ROLE_ARN" \
+            --arg CONTAINER_NAME "$SERVICE_CONTAINER_NAME" '
+            .containerDefinitions |=
+              (map(if .name == $CONTAINER_NAME then .image = $IMAGE | . else . end)) |
+            .executionRoleArn = $EXEC_ROLE |
+            .taskRoleArn = $TASK_ROLE
+          ' "$TEMPLATE" > "$TASKDEF"
+
+          echo "taskdef=$TASKDEF" >> $GITHUB_OUTPUT
+
+      - name: Register new task definition
+        id: register
+        run: |
+          ARN=$(aws ecs register-task-definition --cli-input-json file://${{ steps.taskdef.outputs.taskdef }} \
+            --query "taskDefinition.taskDefinitionArn" --output text)
+          echo "taskdef_arn=$ARN" >> $GITHUB_OUTPUT
+
+      - name: Create AppSpec file
+        run: |
+          cat > appspec.yaml <<EOF
+          version: 1
+          Resources:
+            - TargetService:
+                Type: AWS::ECS::Service
+                Properties:
+                  TaskDefinition: ${{ steps.register.outputs.taskdef_arn }}
+                  LoadBalancerInfo:
+                    ContainerName: ${{ steps.outputs.outputs.CONTAINER_NAME }}
+                    ContainerPort: ${{ steps.outputs.outputs.CONTAINER_PORT }}
+          Hooks:
+            AfterAllowTestTraffic:
+              - location: ${{ steps.outputs.outputs.PRE_HOOK }}
+                timeout: 300
+          EOF
+          cat appspec.yaml
+
+      - name: Trigger CodeDeploy deployment
+        id: deploy
+        run: |
+          DEPLOYMENT_ID=$(aws deploy create-deployment \
+            --application-name "${{ steps.outputs.outputs.CD_APP }}" \
+            --deployment-group-name "${{ steps.outputs.outputs.CD_DG }}" \
+            --revision "appSpecContent={content=$(cat appspec.yaml | perl -pe 's/\n/\\n/g' | sed 's/"/\\"/g')}" \
+            --query "deploymentId" --output text)
+          echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          echo "DeploymentId: $DEPLOYMENT_ID"
+
+      - name: Wait for deployment (optional but recommended)
+        run: |
+          aws deploy wait deployment-successful --deployment-id "${{ steps.deploy.outputs.deployment_id }}"
+          echo "Deployment succeeded"
