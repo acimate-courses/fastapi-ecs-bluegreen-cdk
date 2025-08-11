@@ -1,0 +1,116 @@
+name: Deploy ECS Blue/Green
+description: Reusable ECS deployment pipeline for CodeDeploy blue/green
+
+inputs:
+  aws-region:
+    required: true
+    description: AWS region to deploy to
+  aws-account-id:
+    required: true
+    description: AWS account ID
+  deploy-role-arn:
+    required: true
+    description: IAM role to assume for deployment
+  stack-name:
+    required: true
+    description: CDK stack name
+  image-tag:
+    required: true
+    description: Docker image tag
+  ecr-repo:
+    required: true
+    description: ECR repository name
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.deploy-role-arn }}
+        aws-region: ${{ inputs.aws-region }}
+
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build and push Docker image
+      shell: bash
+      run: |
+        IMAGE_URI=${{ inputs.aws-account-id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/${{ inputs.ecr-repo }}:${{ inputs.image-tag }}
+        docker build -t $IMAGE_URI .
+        docker push $IMAGE_URI
+        echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+    - name: Get stack outputs
+      id: outputs
+      run: |
+          # If you have CDK outputs JSON saved as a repo variable, parse it.
+          # Alternatively, fetch via aws cloudformation describe-stacks.
+          STACK_NAME=dev/fastapi-ecs-training-cluster-us-east-1-ecs-blue-green
+          OUT=$(aws cloudformation describe-stacks --stack-name $STACK_NAME \
+            --query "Stacks[0].Outputs[].[OutputKey,OutputValue]" --output text)
+
+          kv() { echo "$OUT" | awk -v k="$1" '$1==k{print $2}'; }
+
+          echo "CLUSTER=$(kv ClusterName)" >> $GITHUB_OUTPUT
+          echo "SERVICE=$(kv ServiceName)" >> $GITHUB_OUTPUT
+          echo "CD_APP=$(kv CodeDeployApplicationName)" >> $GITHUB_OUTPUT
+          echo "CD_DG=$(kv CodeDeployDeploymentGroupName)" >> $GITHUB_OUTPUT
+          echo "PRE_HOOK=$(kv PreTrafficHookName)" >> $GITHUB_OUTPUT
+          echo "CONTAINER_NAME=$(kv ContainerName)" >> $GITHUB_OUTPUT
+          echo "CONTAINER_PORT=$(kv ContainerPort)" >> $GITHUB_OUTPUT
+          echo "ECR_URI=$(kv EcrRepositoryUri)" >> $GITHUB_OUTPUT
+          echo "TASK_ROLE_ARN=$(kv ECSTaskRole)" >> $GITHUB_OUTPUT
+          echo "EXECUTION_ROLE_ARN=$(kv ECSExecutionRole)" >> $GITHUB_OUTPUT
+
+    - name: Render task definition
+      shell: bash
+      run: |
+        TEMPLATE=taskdef-template.json
+        TASKDEF=taskdef.json
+        jq --arg IMAGE "$IMAGE_URI" \
+           --arg EXEC_ROLE "$ECS_EXECUTION_ROLE" \
+           --arg TASK_ROLE "$ECSTASK_ROLE" \
+           --arg CONTAINER_NAME "$CONTAINER_NAME" '
+          .containerDefinitions |=
+            (map(if .name == $CONTAINER_NAME then .image = $IMAGE | . else . end)) |
+          .executionRoleArn = $EXEC_ROLE |
+          .taskRoleArn = $TASK_ROLE
+        ' $TEMPLATE > $TASKDEF
+
+    - name: Register new task definition
+      id: register
+      shell: bash
+      run: |
+        ARN=$(aws ecs register-task-definition --cli-input-json file://taskdef.json \
+          --query "taskDefinition.taskDefinitionArn" --output text)
+        echo "TASKDEF_ARN=$ARN" >> $GITHUB_ENV
+
+    - name: Create AppSpec file
+      shell: bash
+      run: |
+        cat > appspec.yaml <<EOF
+        version: 1
+        Resources:
+          - TargetService:
+              Type: AWS::ECS::Service
+              Properties:
+                TaskDefinition: $TASKDEF_ARN
+                LoadBalancerInfo:
+                  ContainerName: $CONTAINER_NAME
+                  ContainerPort: $CONTAINER_PORT
+        Hooks:
+          AfterAllowTestTraffic:
+            - location: $PRE_HOOK
+              timeout: 300
+        EOF
+
+    - name: Trigger CodeDeploy deployment
+      shell: bash
+      run: |
+        DEPLOYMENT_ID=$(aws deploy create-deployment \
+          --application-name "$CD_APP" \
+          --deployment-group-name "$CD_DG" \
+          --revision "appSpecContent={content=$(cat appspec.yaml | perl -pe 's/\n/\\n/g' | sed 's/"/\\"/g')}" \
+          --query "deploymentId" --output text)
+        echo "Deployment ID: $DEPLOYMENT_ID"

@@ -76,7 +76,7 @@ jobs:
     env:
       ASSEMBLY_DIR: assembly-dev
     steps:
-      - name: Checkout (for Docker assets)
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.ref || github.ref }}
@@ -90,18 +90,6 @@ jobs:
       - name: Unzip
         run: unzip cdk-out.zip -d cdk.out
 
-      - name: Verify assembly exists
-        id: assembly
-        run: |
-          APP_PATH="cdk.out/${ASSEMBLY_DIR}"
-          if [ ! -d "$APP_PATH" ]; then
-            echo "::error::Expected assembly directory not found: $APP_PATH"
-            echo "Available:"
-            ls -la cdk.out || true
-            exit 1
-          fi
-          echo "app=$APP_PATH" >> $GITHUB_OUTPUT
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -113,46 +101,27 @@ jobs:
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          # aws-region: ${{ secrets.AWS_REGION }}
           role-to-assume: arn:aws:iam::707690426194:role/training-github-oidc-cdk
           aws-region: us-east-1
 
-      - name: Resolve stacks
-        id: stacks
-        run: |
-          if [ -n "${{ github.event.inputs.stacks }}" ]; then
-            echo "value=${{ github.event.inputs.stacks }}" >> "$GITHUB_OUTPUT"
-          else
-            STACKS_LIST="$(cdk ls --app '${{ needs.assembly.outputs.app }}' \
-              | awk '{ gsub(/\(|\)/,"",$NF); print $NF }')"
-            {
-              echo "value<<EOF"
-              echo "$STACKS_LIST"
-              echo "EOF"
-            } >> "$GITHUB_OUTPUT"
-          fi
-
-
-      # - name: cdk bootstrap (idempotent)
-      #   run: cdk bootstrap --app '${{ steps.assembly.outputs.app }}'
-
       - name: cdk diff
-        run: cdk diff --app '${{ steps.assembly.outputs.app }}' ${{ steps.stacks.outputs.value }} || true
+        run: cdk diff --app cdk.out $CDK_STACKS_TO_DEPLOY
+        env:
+          CDK_STACKS_TO_DEPLOY: dev/* # make it dynamic through input based.
 
       - name: cdk deploy
-        run: cdk deploy --all --app '${{ steps.assembly.outputs.app }}' --require-approval never
-
-      # Save stack outputs for next workflow
-      - name: Export stack outputs
-        run: |
-          aws cloudformation describe-stacks --stack-name EcsBlueGreenStack \
-            --query "Stacks[0].Outputs" --output json > infra_outputs.json
-          echo "CDK_OUTPUTS_JSON=$(cat infra_outputs.json | base64 -w 0)" >> $GITHUB_ENV
-
-      - name: Upload outputs as artifact
-        uses: actions/upload-artifact@v4
+        run: cdk deploy --app cdk.out $CDK_STACKS_TO_DEPLOY --require-approval never
+        env:
+          CDK_STACKS_TO_DEPLOY: dev/* # make it dynamic through input based.      
+  
+      - name: deploy-ecs-blue-green
+        uses: ./.github/actions/deploy-ecs
         with:
-          name: cdk-outputs
-          path: infra_outputs.json
-          
+          role-to-assume: arn:aws:iam::707690426194:role/training-github-oidc-cdk
+          aws-region: us-east-1
+          aws-account-id: 707690426194          
+          stack-name: dev/fastapi-ecs-training-cluster-us-east-1-ecs-blue-green
+          image-tag: ${{ github.sha }}
+          ecr-repo: ecs-bluegreen-app
+
+

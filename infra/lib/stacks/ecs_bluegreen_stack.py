@@ -207,6 +207,14 @@ class EcsBlueGreenStack(Stack):
             deployment_style=codedeploy.CfnDeploymentGroup.DeploymentStyleProperty(
                 deployment_option="WITH_TRAFFIC_CONTROL", deployment_type="BLUE_GREEN"
             ),
+            blue_green_deployment_configuration=codedeploy.CfnDeploymentGroup.BlueGreenDeploymentConfigurationProperty(
+                terminate_blue_instances_on_deployment_success=codedeploy.CfnDeploymentGroup.BlueInstanceTerminationOptionProperty(
+                    action="TERMINATE", termination_wait_time_in_minutes=5
+                ),
+                deployment_ready_option=codedeploy.CfnDeploymentGroup.DeploymentReadyOptionProperty(
+                    action_on_timeout="CONTINUE_DEPLOYMENT", wait_time_in_minutes=0
+                ),                
+            ),
             auto_rollback_configuration=codedeploy.CfnDeploymentGroup.AutoRollbackConfigurationProperty(
                 enabled=True,
                 events=[
