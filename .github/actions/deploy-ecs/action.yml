@@ -117,15 +117,13 @@ runs:
               timeout: 300
         EOF
 
-    - name: Trigger CodeDeploy deployment
-      shell: bash
+    - name: Create CodeDeploy deployment
       env:
         CD_APP: ${{ steps.describe.outputs.CD_APP }}
         CD_DG: ${{ steps.describe.outputs.CD_DG }}
       run: |
-        DEPLOYMENT_ID=$(aws deploy create-deployment \
-          --application-name "$CD_APP" \
-          --deployment-group-name "$CD_DG" \
-          --revision "appSpecContent={content=$(cat appspec.yaml | perl -pe 's/\n/\\n/g' | sed 's/"/\\"/g')}" \
-          --query "deploymentId" --output text)
-        echo "Deployment ID: $DEPLOYMENT_ID"
+        chmod +x scripts/create_codedeploy_deployment.sh
+        CD_APP=$CD_APP \
+        CD_DG=$CD_DG \
+        scripts/create_codedeploy_deployment.sh
+
