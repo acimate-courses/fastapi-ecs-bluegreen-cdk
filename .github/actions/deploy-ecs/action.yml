@@ -100,13 +100,19 @@ runs:
         CD_DG: ${{ steps.describe.outputs.CD_DG }}
         
       run: |
+        # Convert YAML to raw JSON string
         RAW_JSON=$(yq -o=json '.' appspec.yaml)
-        SHA=$(echo -n "$RAW_JSON" | openssl dgst -sha256 | awk '{print $2}')
+
+        # Compact the JSON string
+        STR_FORMATTED_JSON=$(echo "$RAW_JSON" | jq -c '.')
+
+        # Compute SHA256 hash of compact JSON
+        SHA=$(echo -n "$STR_FORMATTED_JSON" | openssl dgst -sha256 | awk '{print $2}')
         
         echo "SHA=$SHA"
         
         REVISION_JSON=$(jq -n \
-        --argjson content "$RAW_JSON" \
+        --arg content "$STR_FORMATTED_JSON" \
         --arg sha256 "$SHA" \
         '{
           revisionType: "AppSpecContent",
