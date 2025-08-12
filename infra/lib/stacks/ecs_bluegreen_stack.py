@@ -260,6 +260,6 @@ class EcsBlueGreenStack(Stack):
         CfnOutput(self, "PreTrafficHookName", value=pre_hook.function_name)
         CfnOutput(self, "ContainerName", value=container.container_name)
         CfnOutput(self, "ContainerPort", value=str(container_port))
-        CfnOutput(self, "ECSTaskRole", value=str(task_role))
-        CfnOutput(self, "ECSExecutionRole", value=str(execution_role))
+        CfnOutput(self, "ECSTaskRole", value=task_role.role_arn)
+        CfnOutput(self, "ECSExecutionRole", value=execution_role.role_arn)
         
