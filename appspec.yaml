@@ -3,9 +3,8 @@ Resources:
   - TargetService:
       Type: AWS::ECS::Service
       Properties:
-        TaskDefinition: arn:aws:ecs:us-east-1:707690426194:task-definition/EcsBlueGreenStackTaskDef:20
+        TaskDefinition: arn:aws:ecs:us-east-1:707690426194:task-definition/EcsBlueGreenStackTaskDef:22
         LoadBalancerInfo:
           ContainerName: AppContainer
           ContainerPort: 80
-hooks:
-  - AfterAllowTestTraffic: "dev-fastapi-ecs-training--AfterAllowTestTrafficHoo-z3TJUCkqsgC8"
+
