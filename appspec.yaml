@@ -1,13 +1,11 @@
-version: 1
+version: 0.0
 Resources:
   - TargetService:
       Type: AWS::ECS::Service
       Properties:
-        TaskDefinition: arn:aws:ecs:us-east-1:707690426194:task-definition/EcsBlueGreenStackTaskDef:6
+        TaskDefinition: arn:aws:ecs:us-east-1:707690426194:task-definition/EcsBlueGreenStackTaskDef:15
         LoadBalancerInfo:
           ContainerName: AppContainer
           ContainerPort: 80
-Hooks:
-  AfterAllowTestTraffic:
-    - location: dev-fastapi-ecs-training--AfterAllowTestTrafficHoo-b29P2J8dBaUR
-      timeout: 300
+hooks:
+  - AfterAllowTestTraffic: "dev-fastapi-ecs-training--AfterAllowTestTrafficHoo-b29P2J8dBaUR"

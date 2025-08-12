@@ -71,8 +71,8 @@ class EcsBlueGreenStack(Stack):
         container = task_def.add_container(
             "AppContainer",
             image=ecs.ContainerImage.from_registry(
-                # initial bootstrap image; your pipeline will push to ECR and register new task defs
-                "public.ecr.aws/nginx/nginx:stable"
+                # Minimal image that responds on port 80 immediately
+                "nginxdemos/hello:latest"
             ),
             logging=ecs.LogDrivers.aws_logs(
                 stream_prefix="app", log_group=log_group
@@ -143,7 +143,7 @@ class EcsBlueGreenStack(Stack):
             "Service",
             cluster=cluster,
             task_definition=task_def,
-            desired_count=2,
+            desired_count=1,
             assign_public_ip=True,
             security_groups=[svc_sg],
             deployment_controller=ecs.DeploymentController(
