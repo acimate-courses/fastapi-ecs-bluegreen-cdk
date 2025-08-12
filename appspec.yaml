@@ -3,7 +3,7 @@ Resources:
   - TargetService:
       Type: AWS::ECS::Service
       Properties:
-        TaskDefinition: arn:aws:ecs:us-east-1:707690426194:task-definition/EcsBlueGreenStackTaskDef:19
+        TaskDefinition: arn:aws:ecs:us-east-1:707690426194:task-definition/EcsBlueGreenStackTaskDef:20
         LoadBalancerInfo:
           ContainerName: AppContainer
           ContainerPort: 80
