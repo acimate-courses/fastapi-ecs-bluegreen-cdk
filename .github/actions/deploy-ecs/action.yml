@@ -52,8 +52,8 @@ runs:
           OUT=$(aws cloudformation describe-stacks --stack-name $STACK_NAME \
             --query "Stacks[0].Outputs" --output json)
 
-          echo "EXEC_ROLE=arn:aws:iam::707690426194:role/dev-fastapi-ecs-training-clus-ExecutionRole605A040B-Zl90Poa0kVlK" >> "$GITHUB_OUTPUT"
-          echo "TASK_ROLE=arn:aws:iam::707690426194:role/dev-fastapi-ecs-training-cluster-u-TaskRole30FC0FBB-wZW72g55fD7H" >> "$GITHUB_OUTPUT"
+          echo "EXEC_ROLE=arn:aws:iam::707690426194:role/dev-fastapi-ecs-training-clus-ExecutionRole605A040B-6bwMXzmRypRi" >> "$GITHUB_OUTPUT"
+          echo "TASK_ROLE=arn:aws:iam::707690426194:role/dev-fastapi-ecs-training-cluster-u-TaskRole30FC0FBB-iWJ4VrocQDqw" >> "$GITHUB_OUTPUT"
           echo "CLUSTER=$(jq -r '.[] | select(.OutputKey=="ClusterName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
           echo "SERVICE=$(jq -r '.[] | select(.OutputKey=="ServiceName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
           echo "CD_APP=$(jq -r '.[] | select(.OutputKey=="CodeDeployApplicationName") | .OutputValue' <<< "$OUT")" >> "$GITHUB_OUTPUT"
