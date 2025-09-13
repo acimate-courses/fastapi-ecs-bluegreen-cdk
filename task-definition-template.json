@@ -18,7 +18,7 @@
         "logDriver": "awslogs",
         "options": {
           "awslogs-region": "us-east-1",
-          "awslogs-group": "dev-fastapi-ecs-training-cluster-us-east-1-ecs-blue-green-AppLogGroup7D8CD952-vmT2WBA5gQSo",
+          "awslogs-group": "dev-fastapi-ecs-training-cluster-us-east-1-ecs-blue-green-AppLogGroup7D8CD952-hGsWrb80Qc6j",
           "awslogs-stream-prefix": "app"
         }
       },
